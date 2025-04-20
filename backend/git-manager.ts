@@ -29,7 +29,10 @@ export class GitManager {
      */
     constructor(baseDir?: string) {
         // Set default directory to /opt/git-repositories or use environment variable
-        this.baseDir = baseDir || process.env.DOCKGE_GIT_REPOSITORIES_DIR || "/opt/git-repositories";
+        this.baseDir =
+            baseDir ||
+            process.env.DOCKGE_GIT_REPOSITORIES_DIR ||
+            "/opt/git-repositories";
     }
 
     /**
@@ -39,9 +42,15 @@ export class GitManager {
     async initialize(): Promise<void> {
         try {
             await fsPromises.mkdir(this.baseDir, { recursive: true });
-            log.info("git", `Git repositories directory initialized: ${this.baseDir}`);
+            log.info(
+                "git",
+                `Git repositories directory initialized: ${this.baseDir}`
+            );
         } catch (error) {
-            log.error("git", `Failed to initialize Git repositories directory: ${error}`);
+            log.error(
+                "git",
+                `Failed to initialize Git repositories directory: ${error}`
+            );
             throw error;
         }
     }
@@ -70,9 +79,9 @@ export class GitManager {
         try {
             // Check if directory already exists
             if (fs.existsSync(repoPath)) {
-                return { 
-                    success: false, 
-                    message: "Repository directory already exists" 
+                return {
+                    success: false,
+                    message: "Repository directory already exists",
                 };
             }
 
@@ -87,7 +96,11 @@ export class GitManager {
             let cloneArgs = ["clone", "--branch", branch];
 
             if (credential && repository.auth_type !== "none") {
-                const authResult = await this.setupAuthentication(repository, credential, env);
+                const authResult = await this.setupAuthentication(
+                    repository,
+                    credential,
+                    env
+                );
                 if (!authResult.success) {
                     return authResult;
                 }
@@ -98,10 +111,17 @@ export class GitManager {
             cloneArgs.push(url, repoPath);
 
             // Execute git clone
-            const result = await this.executeGitCommand(cloneArgs, path.dirname(repoPath), env);
-            
+            const result = await this.executeGitCommand(
+                cloneArgs,
+                path.dirname(repoPath),
+                env
+            );
+
             if (result.success) {
-                log.info("git", `Successfully cloned repository ${repository.name} (${repository.id})`);
+                log.info(
+                    "git",
+                    `Successfully cloned repository ${repository.name} (${repository.id})`
+                );
                 return {
                     success: true,
                     message: "Repository cloned successfully",
@@ -135,25 +155,37 @@ export class GitManager {
             if (!fs.existsSync(repoPath)) {
                 return {
                     success: false,
-                    message: "Repository directory doesn't exist, please clone first",
+                    message:
+                        "Repository directory doesn't exist, please clone first",
                 };
             }
 
             // Set up auth if needed
             let env = { ...process.env };
-            
+
             if (credential && repository.auth_type !== "none") {
-                const authResult = await this.setupAuthentication(repository, credential, env);
+                const authResult = await this.setupAuthentication(
+                    repository,
+                    credential,
+                    env
+                );
                 if (!authResult.success) {
                     return authResult;
                 }
             }
 
             // Execute git fetch
-            const result = await this.executeGitCommand(["fetch", "--all"], repoPath, env);
-            
+            const result = await this.executeGitCommand(
+                ["fetch", "--all"],
+                repoPath,
+                env
+            );
+
             if (result.success) {
-                log.info("git", `Successfully fetched repository ${repository.name} (${repository.id})`);
+                log.info(
+                    "git",
+                    `Successfully fetched repository ${repository.name} (${repository.id})`
+                );
                 return {
                     success: true,
                     message: "Repository fetched successfully",
@@ -187,21 +219,34 @@ export class GitManager {
             if (!fs.existsSync(repoPath)) {
                 return {
                     success: false,
-                    message: "Repository directory doesn't exist, please clone first",
+                    message:
+                        "Repository directory doesn't exist, please clone first",
                 };
             }
 
             // Execute git checkout
-            const result = await this.executeGitCommand(["checkout", ref], repoPath);
-            
+            const result = await this.executeGitCommand(
+                ["checkout", ref],
+                repoPath
+            );
+
             if (result.success) {
                 // Pull latest changes if checking out a branch
-                const pullResult = await this.executeGitCommand(["pull"], repoPath);
+                const pullResult = await this.executeGitCommand(
+                    ["pull"],
+                    repoPath
+                );
                 if (!pullResult.success) {
-                    log.warn("git", `Failed to pull after checkout: ${pullResult.message}`);
+                    log.warn(
+                        "git",
+                        `Failed to pull after checkout: ${pullResult.message}`
+                    );
                 }
 
-                log.info("git", `Successfully checked out ${ref} for repository ${repository.name} (${repository.id})`);
+                log.info(
+                    "git",
+                    `Successfully checked out ${ref} for repository ${repository.name} (${repository.id})`
+                );
                 return {
                     success: true,
                     message: `Successfully checked out ${ref}`,
@@ -223,7 +268,9 @@ export class GitManager {
      * @param repository - Repository object
      * @returns Operation result with commit hash in data
      */
-    async getCurrentCommit(repository: GitRepository): Promise<GitOperationResult> {
+    async getCurrentCommit(
+        repository: GitRepository
+    ): Promise<GitOperationResult> {
         const repoPath = this.getRepositoryPath(repository.id);
 
         try {
@@ -231,13 +278,17 @@ export class GitManager {
             if (!fs.existsSync(repoPath)) {
                 return {
                     success: false,
-                    message: "Repository directory doesn't exist, please clone first",
+                    message:
+                        "Repository directory doesn't exist, please clone first",
                 };
             }
 
             // Execute git rev-parse HEAD
-            const result = await this.executeGitCommand(["rev-parse", "HEAD"], repoPath);
-            
+            const result = await this.executeGitCommand(
+                ["rev-parse", "HEAD"],
+                repoPath
+            );
+
             if (result.success && result.data) {
                 const commitHash = result.data.trim();
                 return {
@@ -277,22 +328,35 @@ export class GitManager {
             if (!fs.existsSync(repoPath)) {
                 return {
                     success: false,
-                    message: "Repository directory doesn't exist, please clone first",
+                    message:
+                        "Repository directory doesn't exist, please clone first",
                 };
             }
 
             // Execute git show
             const result = await this.executeGitCommand(
-                ["show", "--pretty=format:%H%n%an%n%ae%n%ct%n%s%n%b", "--no-patch", commitHash],
+                [
+                    "show",
+                    "--pretty=format:%H%n%an%n%ae%n%ct%n%s%n%b",
+                    "--no-patch",
+                    commitHash,
+                ],
                 repoPath
             );
-            
+
             if (result.success && result.data) {
                 const lines = result.data.trim().split("\n");
                 if (lines.length >= 5) {
-                    const [hash, author, email, timestamp, subject, ...bodyLines] = lines;
+                    const [
+                        hash,
+                        author,
+                        email,
+                        timestamp,
+                        subject,
+                        ...bodyLines
+                    ] = lines;
                     const body = bodyLines.join("\n");
-                    
+
                     return {
                         success: true,
                         message: "Successfully retrieved commit details",
@@ -331,16 +395,21 @@ export class GitManager {
      * @param repository - Repository object
      * @returns Operation result with compose files in data
      */
-    async scanForComposeFiles(repository: GitRepository): Promise<GitOperationResult> {
+    async scanForComposeFiles(
+        repository: GitRepository
+    ): Promise<GitOperationResult> {
         const repoPath = this.getRepositoryPath(repository.id);
-        const searchPath = repository.path ? path.join(repoPath, repository.path) : repoPath;
+        const searchPath = repository.path
+            ? path.join(repoPath, repository.path)
+            : repoPath;
 
         try {
             // Check if directory exists
             if (!fs.existsSync(repoPath)) {
                 return {
                     success: false,
-                    message: "Repository directory doesn't exist, please clone first",
+                    message:
+                        "Repository directory doesn't exist, please clone first",
                 };
             }
 
@@ -352,7 +421,10 @@ export class GitManager {
             }
 
             // Find all yaml/yml files
-            const { stdout } = await exec(`find "${searchPath}" -type f -name "docker-compose*.y*ml" -o -name "compose.y*ml"`, { maxBuffer: 10 * 1024 * 1024 });
+            const { stdout } = await exec(
+                `find "${searchPath}" -type f -name "docker-compose*.y*ml" -o -name "compose.y*ml"`,
+                { maxBuffer: 10 * 1024 * 1024 }
+            );
             const files = stdout.trim().split("\n").filter(Boolean);
 
             // Analyze each file to confirm it's a compose file
@@ -361,7 +433,10 @@ export class GitManager {
                 try {
                     const content = await fsPromises.readFile(file, "utf-8");
                     // Simple check for docker-compose format by looking for common keys
-                    if (content.includes("version:") || content.includes("services:")) {
+                    if (
+                        content.includes("version:") ||
+                        content.includes("services:")
+                    ) {
                         const relativePath = path.relative(repoPath, file);
                         composeFiles.push({
                             path: relativePath,
@@ -442,20 +517,28 @@ export class GitManager {
     ): Promise<GitOperationResult> {
         try {
             const authType = repository.auth_type;
-            
+
             if (authType === "ssh") {
                 // Set up SSH auth
                 const sshKeyData = credential.getDecryptedData();
-                const sshDir = path.join(os.tmpdir(), `dockge-ssh-${repository.id}`);
+                const sshDir = path.join(
+                    os.tmpdir(),
+                    `dockge-ssh-${repository.id}`
+                );
                 const sshKeyPath = path.join(sshDir, "id_rsa");
-                
+
                 // Create dir and save key
-                await fsPromises.mkdir(sshDir, { recursive: true, mode: 0o700 });
-                await fsPromises.writeFile(sshKeyPath, sshKeyData, { mode: 0o600 });
-                
+                await fsPromises.mkdir(sshDir, {
+                    recursive: true,
+                    mode: 0o700,
+                });
+                await fsPromises.writeFile(sshKeyPath, sshKeyData, {
+                    mode: 0o600,
+                });
+
                 // Set SSH key in env
                 env.GIT_SSH_COMMAND = `ssh -i ${sshKeyPath} -o StrictHostKeyChecking=no`;
-                
+
                 return {
                     success: true,
                     message: "SSH authentication set up successfully",
@@ -463,21 +546,21 @@ export class GitManager {
             } else if (authType === "token") {
                 // Set up token auth (usually for HTTPS)
                 const tokenData = credential.getDecryptedData();
-                
+
                 // Parse URL to inject token
                 const url = new URL(repository.url);
-                
+
                 if (url.protocol.startsWith("http")) {
                     // Format: https://token@github.com/user/repo
                     url.username = tokenData;
-                    
+
                     // Update env
                     env.GIT_ASKPASS = "echo";
                     env.GIT_TERMINAL_PROMPT = "0";
-                    
+
                     // Store updated URL in repository for this operation
                     repository.url = url.toString();
-                    
+
                     return {
                         success: true,
                         message: "Token authentication set up successfully",
@@ -518,24 +601,24 @@ export class GitManager {
     ): Promise<GitOperationResult> {
         return new Promise((resolve) => {
             log.debug("git", `Executing: git ${args.join(" ")}`);
-            
+
             const child = spawn("git", args, {
                 cwd,
                 env,
                 stdio: ["ignore", "pipe", "pipe"],
             });
-            
+
             let stdout = "";
             let stderr = "";
-            
+
             child.stdout.on("data", (data) => {
                 stdout += data.toString();
             });
-            
+
             child.stderr.on("data", (data) => {
                 stderr += data.toString();
             });
-            
+
             child.on("close", (code) => {
                 if (code === 0) {
                     resolve({
@@ -544,14 +627,17 @@ export class GitManager {
                         data: stdout,
                     });
                 } else {
-                    log.error("git", `Command failed with code ${code}: ${stderr}`);
+                    log.error(
+                        "git",
+                        `Command failed with code ${code}: ${stderr}`
+                    );
                     resolve({
                         success: false,
                         message: stderr || `Command exited with code ${code}`,
                     });
                 }
             });
-            
+
             child.on("error", (error) => {
                 log.error("git", `Command error: ${error}`);
                 resolve({
