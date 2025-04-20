@@ -1,15 +1,46 @@
 <template>
     <transition name="slide-fade" appear>
         <div>
-            <h1 v-if="isAdd" class="mb-3">{{ $t("compose") }}</h1>
-            <h1 v-else class="mb-3">
+            <h1 v-if="isAdd" class="mb-3 d-flex align-items-center">
+                {{ $t("compose") }}
+                <div class="btn-group mode-toggle ms-3" role="group">
+                    <button 
+                        :class="['btn btn-sm', !isGitOpsMode ? 'btn-primary' : 'btn-outline-primary']" 
+                        @click="switchToDirectMode">
+                        <font-awesome-icon icon="pen" class="me-1" />
+                        {{ $t("Direct Edit") }}
+                    </button>
+                    <button 
+                        :class="['btn btn-sm', isGitOpsMode ? 'btn-primary' : 'btn-outline-primary']" 
+                        @click="switchToGitOpsMode">
+                        <font-awesome-icon icon="code-branch" class="me-1" />
+                        {{ $t("GitOps") }}
+                    </button>
+                </div>
+            </h1>
+            <h1 v-else class="mb-3 d-flex align-items-center">
                 <Uptime :stack="globalStack" :pill="true" /> {{ stack.name }}
                 <span v-if="$root.agentCount > 1" class="agent-name">
                     ({{ endpointDisplay }})
                 </span>
+                <div class="btn-group mode-toggle ms-3" role="group">
+                    <button 
+                        :class="['btn btn-sm', !isGitOpsMode ? 'btn-primary' : 'btn-outline-primary']" 
+                        @click="switchToDirectMode">
+                        <font-awesome-icon icon="pen" class="me-1" />
+                        {{ $t("Direct Edit") }}
+                    </button>
+                    <button 
+                        :class="['btn btn-sm', isGitOpsMode ? 'btn-primary' : 'btn-outline-primary']" 
+                        @click="switchToGitOpsMode">
+                        <font-awesome-icon icon="code-branch" class="me-1" />
+                        {{ $t("GitOps") }}
+                    </button>
+                </div>
             </h1>
 
             <div v-if="stack.isManagedByDockge" class="mb-3">
+
                 <div class="btn-group me-2" role="group">
                     <button v-if="isEditMode" class="btn btn-primary" :disabled="processing" @click="deployStack">
                         <font-awesome-icon icon="rocket" class="me-1" />
@@ -106,44 +137,103 @@
                         </div>
                     </div>
 
-                    <!-- Containers -->
-                    <h4 class="mb-3">{{ $tc("container", 2) }}</h4>
+                    <!-- Direct Edit Mode Sections -->
+                    <div v-if="!isGitOpsMode">
+                        <!-- Containers -->
+                        <h4 class="mb-3">{{ $tc("container", 2) }}</h4>
 
-                    <div v-if="isEditMode" class="input-group mb-3">
-                        <input
-                            v-model="newContainerName"
-                            :placeholder="$t(`New Container Name...`)"
-                            class="form-control"
-                            @keyup.enter="addContainer"
-                        />
-                        <button class="btn btn-primary" @click="addContainer">
-                            {{ $t("addContainer") }}
-                        </button>
+                        <div v-if="isEditMode" class="input-group mb-3">
+                            <input
+                                v-model="newContainerName"
+                                :placeholder="$t(`New Container Name...`)"
+                                class="form-control"
+                                @keyup.enter="addContainer"
+                            />
+                            <button class="btn btn-primary" @click="addContainer">
+                                {{ $t("addContainer") }}
+                            </button>
+                        </div>
+
+                        <div ref="containerList">
+                            <Container
+                                v-for="(service, name) in jsonConfig.services"
+                                :key="name"
+                                :name="name"
+                                :is-edit-mode="isEditMode"
+                                :first="name === Object.keys(jsonConfig.services)[0]"
+                                :status="serviceStatusList[name]"
+                            />
+                        </div>
+
+                        <!-- General -->
+                        <div v-if="isEditMode">
+                            <h4 class="mb-3">{{ $t("extra") }}</h4>
+                            <div class="shadow-box big-padding mb-3">
+                                <!-- URLs -->
+                                <div class="mb-4">
+                                    <label class="form-label">
+                                        {{ $tc("url", 2) }}
+                                    </label>
+                                    <ArrayInput name="urls" :display-name="$t('url')" placeholder="https://" object-type="x-dockge" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
-
-                    <div ref="containerList">
-                        <Container
-                            v-for="(service, name) in jsonConfig.services"
-                            :key="name"
-                            :name="name"
-                            :is-edit-mode="isEditMode"
-                            :first="name === Object.keys(jsonConfig.services)[0]"
-                            :status="serviceStatusList[name]"
-                        />
-                    </div>
-
-                    <button v-if="false && isEditMode && jsonConfig.services && Object.keys(jsonConfig.services).length > 0" class="btn btn-normal mb-3" @click="addContainer">{{ $t("addContainer") }}</button>
-
-                    <!-- General -->
-                    <div v-if="isEditMode">
-                        <h4 class="mb-3">{{ $t("extra") }}</h4>
+                    
+                    <!-- GitOps Mode Services Display -->
+                    <div v-else>
+                        <h4 class="mb-3">{{ $tc("container", 2) }}</h4>
                         <div class="shadow-box big-padding mb-3">
-                            <!-- URLs -->
-                            <div class="mb-4">
-                                <label class="form-label">
-                                    {{ $tc("url", 2) }}
-                                </label>
-                                <ArrayInput name="urls" :display-name="$t('url')" placeholder="https://" object-type="x-dockge" />
+                            <div v-if="jsonConfig.services && Object.keys(jsonConfig.services).length > 0">
+                                <div v-for="(service, name) in jsonConfig.services" :key="name" class="mb-2 p-2 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <strong>{{ name }}</strong>
+                                        <span class="ms-2 text-muted">{{ service.image }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="text-center text-muted p-3">
+                                {{ $t("No services found in this compose file") }}
+                            </div>
+                        </div>
+                        
+                        <!-- Environment Variables for GitOps Mode -->
+                        <h4 class="mb-3">{{ $t("Environment Variables") }}</h4>
+                        <div class="shadow-box big-padding mb-3">
+                            <div v-if="isEditMode" class="mb-3">
+                                <div class="alert alert-info">
+                                    <font-awesome-icon icon="info-circle" class="me-2" />
+                                    {{ $t("These variables will be injected when deploying from Git. You can reference them in your compose file using ${VARIABLE} syntax.") }}
+                                </div>
+                                <div v-for="(variable, index) in stack.gitVariables" :key="index" class="d-flex mb-2">
+                                    <input
+                                        v-model="variable.key"
+                                        class="form-control me-2"
+                                        placeholder="VARIABLE_NAME"
+                                    />
+                                    <input
+                                        v-model="variable.value"
+                                        class="form-control me-2"
+                                        placeholder="value"
+                                    />
+                                    <button class="btn btn-outline-danger" @click="removeVariable(index)">
+                                        <font-awesome-icon icon="trash" />
+                                    </button>
+                                </div>
+                                <button class="btn btn-outline-secondary btn-sm mt-2" @click="addVariable">
+                                    <font-awesome-icon icon="plus" /> {{ $t("Add Variable") }}
+                                </button>
+                            </div>
+                            <div v-else>
+                                <div v-if="stack.gitVariables && stack.gitVariables.length > 0">
+                                    <div v-for="(variable, index) in stack.gitVariables" :key="index" class="d-flex mb-2">
+                                        <div class="badge bg-primary me-2">{{ variable.key }}</div>
+                                        <div class="text-muted">{{ variable.value }}</div>
+                                    </div>
+                                </div>
+                                <div v-else class="text-center text-muted p-3">
+                                    {{ $t("No environment variables defined") }}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -165,8 +255,84 @@
                 <div class="col-lg-6">
                     <h4 class="mb-3">{{ stack.composeFileName }}</h4>
 
-                    <!-- YAML editor -->
-                    <div class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
+                    <!-- GitOps Repository Selector -->
+                    <div v-if="isGitOpsMode" class="shadow-box big-padding mb-3">
+                        <h5 class="mb-3">{{ $t("Git Repository") }}</h5>
+                        
+                        <div v-if="repositories.length === 0" class="text-center p-4 bg-light rounded mb-4">
+                            <p class="text-muted mb-3">{{ $t("No Git repositories found") }}</p>
+                            <button class="btn btn-primary" @click="showAddRepositoryModal">
+                                <font-awesome-icon icon="plus" class="me-1" />
+                                {{ $t("Add Repository") }}
+                            </button>
+                        </div>
+                        
+                        <div v-else>
+                            <div class="d-flex mb-3">
+                                <div class="flex-grow-1">
+                                    <label class="form-label">{{ $t("Repository") }}</label>
+                                    <select v-model="stack.repositoryId" class="form-select" @change="onRepositoryChange">
+                                        <option v-for="repo in repositories" :key="repo.id" :value="repo.id">
+                                            {{ repo.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="ms-2 d-flex align-items-end">
+                                    <button class="btn btn-outline-primary mb-1" @click="showAddRepositoryModal">
+                                        <font-awesome-icon icon="plus" />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">{{ $t("Branch") }}</label>
+                                <select v-model="stack.gitBranch" class="form-select" @change="onBranchChange">
+                                    <option v-for="branch in branches" :key="branch" :value="branch">
+                                        {{ branch }}
+                                    </option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">{{ $t("Compose File") }}</label>
+                                <select v-model="stack.filePath" class="form-select" @change="loadFileContent">
+                                    <option v-for="file in composeFiles" :key="file.path" :value="file.path">
+                                        {{ file.path }}
+                                    </option>
+                                </select>
+                            </div>
+                            
+                            <!-- Agent Selection for deployment target -->
+                            <div class="mb-3">
+                                <label class="form-label">{{ $t("Deployment Target") }}</label>
+                                <select v-model="stack.endpoint" class="form-select">
+                                    <option v-for="(agent, endpoint) in $root.agentList" :key="endpoint" :value="endpoint" :disabled="$root.agentStatusList[endpoint] != 'online'">
+                                        ({{ $root.agentStatusList[endpoint] }}) {{ (endpoint) ? endpoint : $t("currentEndpoint") }}
+                                    </option>
+                                </select>
+                                <div class="form-text">
+                                    {{ $t('Select which agent should deploy this stack') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Show YAML preview in GitOps mode -->
+                    <div v-if="isGitOpsMode && previewYAML">
+                        <h5 class="mb-3">{{ $t("Preview") }}</h5>
+                        <div class="shadow-box mb-3 editor-box">
+                            <prism-editor
+                                v-model="previewYAML"
+                                class="yaml-editor"
+                                :highlight="highlighterYAML"
+                                line-numbers
+                                readonly
+                            ></prism-editor>
+                        </div>
+                    </div>
+
+                    <!-- YAML editor (Direct Edit Mode) -->
+                    <div v-if="!isGitOpsMode" class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
                         <prism-editor
                             ref="editor"
                             v-model="stack.composeYAML"
@@ -178,12 +344,12 @@
                             @blur="editorFocus = false"
                         ></prism-editor>
                     </div>
-                    <div v-if="isEditMode" class="mb-3">
+                    <div v-if="isEditMode && !isGitOpsMode" class="mb-3">
                         {{ yamlError }}
                     </div>
 
-                    <!-- ENV editor -->
-                    <div v-if="isEditMode">
+                    <!-- ENV editor (Direct Edit Mode) -->
+                    <div v-if="isEditMode && !isGitOpsMode">
                         <h4 class="mb-3">.env</h4>
                         <div class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
                             <prism-editor
@@ -198,7 +364,7 @@
                         </div>
                     </div>
 
-                    <div v-if="isEditMode">
+                    <div v-if="isEditMode && !isGitOpsMode">
                         <!-- Volumes -->
                         <div v-if="false">
                             <h4 class="mb-3">{{ $tc("volume", 2) }}</h4>
@@ -231,6 +397,138 @@
             <!-- Delete Dialog -->
             <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
                 {{ $t("deleteStackMsg") }}
+            </BModal>
+            
+            <!-- Repository Add Modal -->
+            <BModal
+                v-model="showRepoModal"
+                :title="$t('Add Git Repository')"
+                @hidden="resetRepoForm"
+                hide-footer
+                size="lg"
+            >
+                <div v-if="repoFormError" class="alert alert-danger">{{ repoFormError }}</div>
+                
+                <form @submit.prevent="saveRepository">
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Repository Name') }}</label>
+                        <input v-model="repoForm.name" type="text" class="form-control" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Repository URL') }}</label>
+                        <input v-model="repoForm.url" type="text" class="form-control" required />
+                        <div class="form-text">{{ $t('SSH or HTTPS URL to the Git repository') }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Branch') }}</label>
+                        <input v-model="repoForm.branch" type="text" class="form-control" placeholder="main" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Agent') }}</label>
+                        <select v-model="repoForm.agentId" class="form-select">
+                            <option :value="null">{{ $t('All Agents (Global)') }}</option>
+                            <option v-for="agent in agents" :key="agent.id" :value="agent.id">
+                                {{ agent.endpoint }}
+                            </option>
+                        </select>
+                        <div class="form-text">
+                            {{ $t('Repository will be available to all agents if set to "All Agents"') }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Authentication') }}</label>
+                        <select v-model="repoForm.authType" class="form-select">
+                            <option value="none">{{ $t('None') }}</option>
+                            <option value="ssh">{{ $t('SSH Key') }}</option>
+                            <option value="token">{{ $t('Access Token') }}</option>
+                        </select>
+                    </div>
+                    
+                    <div v-if="repoForm.authType !== 'none'" class="mb-3">
+                        <label class="form-label">{{ $t('Credential') }}</label>
+                        <div class="d-flex">
+                            <select v-model="repoForm.authCredentialId" class="form-select flex-grow-1 me-2">
+                                <option v-for="cred in credentials" :key="cred.id" :value="cred.id">
+                                    {{ cred.name }}
+                                </option>
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" @click="showAddCredential">
+                                <font-awesome-icon icon="plus" />
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" @click="showRepoModal = false">
+                            {{ $t('Cancel') }}
+                        </button>
+                        <button type="submit" class="btn btn-primary" :disabled="repoFormLoading">
+                            <font-awesome-icon v-if="repoFormLoading" icon="spinner" spin class="me-1" />
+                            {{ $t('Add') }}
+                        </button>
+                    </div>
+                </form>
+            </BModal>
+            
+            <!-- Credential Add Modal -->
+            <BModal
+                v-model="showCredModal"
+                :title="$t('Add Credential')"
+                @hidden="resetCredForm"
+                hide-footer
+            >
+                <div v-if="credFormError" class="alert alert-danger">{{ credFormError }}</div>
+                
+                <form @submit.prevent="saveCredential">
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Credential Name') }}</label>
+                        <input v-model="credForm.name" type="text" class="form-control" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ $t('Credential Type') }}</label>
+                        <select v-model="credForm.type" class="form-select" required>
+                            <option value="ssh">{{ $t('SSH Key') }}</option>
+                            <option value="token">{{ $t('Access Token') }}</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">
+                            {{ credForm.type === 'ssh' ? $t('SSH Private Key') : $t('Access Token') }}
+                        </label>
+                        <textarea 
+                            v-if="credForm.type === 'ssh'" 
+                            v-model="credForm.data" 
+                            class="form-control" 
+                            required 
+                            rows="10"
+                            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                        ></textarea>
+                        <input 
+                            v-else 
+                            v-model="credForm.data" 
+                            type="text"
+                            class="form-control" 
+                            required 
+                            placeholder="ghp_1234567890abcdef"
+                        />
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" @click="showCredModal = false">
+                            {{ $t('Cancel') }}
+                        </button>
+                        <button type="submit" class="btn btn-primary" :disabled="credFormLoading">
+                            <font-awesome-icon v-if="credFormLoading" icon="spinner" spin class="me-1" />
+                            {{ $t('Add') }}
+                        </button>
+                    </div>
+                </form>
             </BModal>
         </div>
     </transition>
@@ -302,8 +600,43 @@ export default {
             progressTerminalRows: PROGRESS_TERMINAL_ROWS,
             combinedTerminalRows: COMBINED_TERMINAL_ROWS,
             combinedTerminalCols: COMBINED_TERMINAL_COLS,
+            isGitOpsMode: false,
+            repositories: [],
+            branches: [],
+            composeFiles: [],
+            previewYAML: '',
+            agents: [],
+            credentials: [],
+            
+            // Repository form
+            showRepoModal: false,
+            repoForm: {
+                name: "",
+                url: "",
+                branch: "main",
+                agentId: null,
+                authType: "none",
+                authCredentialId: null
+            },
+            repoFormLoading: false,
+            repoFormError: null,
+            
+            // Credential form
+            showCredModal: false,
+            credForm: {
+                name: "",
+                type: "ssh",
+                data: ""
+            },
+            credFormLoading: false,
+            credFormError: null,
+            
             stack: {
-
+                gitopsEnabled: false,
+                repositoryId: null,
+                filePath: '',
+                gitBranch: 'main',
+                gitVariables: []
             },
             serviceStatusList: {},
             isEditMode: false,
@@ -468,6 +801,11 @@ export default {
                 composeENV,
                 isManagedByDockge: true,
                 endpoint: "",
+                gitopsEnabled: false,
+                repositoryId: null,
+                filePath: '',
+                gitBranch: 'main',
+                gitVariables: []
             };
 
             this.yamlCodeChange();
@@ -478,11 +816,200 @@ export default {
         }
 
         this.requestServiceStatus();
+        this.loadRepositories();
+        this.loadAgents();
+        this.loadCredentials();
     },
     unmounted() {
 
     },
     methods: {
+        // GitOps methods
+        switchToDirectMode() {
+            this.isGitOpsMode = false;
+            this.stack.gitopsEnabled = false;
+        },
+        
+        switchToGitOpsMode() {
+            this.isGitOpsMode = true;
+            this.stack.gitopsEnabled = true;
+            this.loadRepositories();
+        },
+        
+        showAddRepositoryModal() {
+            this.repoForm = {
+                name: "",
+                url: "",
+                branch: "main",
+                agentId: null,
+                authType: "none",
+                authCredentialId: null
+            };
+            this.showRepoModal = true;
+        },
+        
+        resetRepoForm() {
+            this.repoFormError = null;
+            this.repoFormLoading = false;
+        },
+        
+        resetCredForm() {
+            this.credFormError = null;
+            this.credFormLoading = false;
+        },
+        
+        showAddCredential() {
+            this.credForm = {
+                name: "",
+                type: "ssh",
+                data: ""
+            };
+            this.showCredModal = true;
+        },
+        
+        saveCredential() {
+            this.credFormLoading = true;
+            this.credFormError = null;
+            
+            this.$root.getSocket().emit("addCredential", this.credForm, (res) => {
+                this.credFormLoading = false;
+                
+                if (res.ok) {
+                    this.showCredModal = false;
+                    this.loadCredentials();
+                    
+                    // Select the newly created credential
+                    if (res.id) {
+                        this.repoForm.authCredentialId = res.id;
+                    }
+                } else {
+                    this.credFormError = res.error || this.$t("Failed to create credential");
+                }
+            });
+        },
+        
+        saveRepository() {
+            this.repoFormLoading = true;
+            this.repoFormError = null;
+            
+            this.$root.getSocket().emit("addRepository", this.repoForm, (res) => {
+                this.repoFormLoading = false;
+                
+                if (res.ok) {
+                    this.showRepoModal = false;
+                    this.loadRepositories();
+                    
+                    // Select the newly created repository
+                    if (res.id) {
+                        this.stack.repositoryId = res.id;
+                        this.onRepositoryChange();
+                    }
+                } else {
+                    this.repoFormError = res.error || this.$t("Failed to add repository");
+                }
+            });
+        },
+        
+        loadAgents() {
+            this.$root.getSocket().emit("getAgentList", (res) => {
+                if (res && res.list) {
+                    this.agents = Object.values(res.list);
+                }
+            });
+        },
+        
+        loadCredentials() {
+            this.$root.getSocket().emit("getCredentialList", (res) => {
+                if (res.ok) {
+                    this.credentials = res.credentials;
+                }
+            });
+        },
+        
+        loadRepositories() {
+            this.$root.getSocket().emit("getRepositoryList", (res) => {
+                if (res.ok) {
+                    this.repositories = res.repositories;
+                    if (this.repositories.length > 0 && !this.stack.repositoryId) {
+                        this.stack.repositoryId = this.repositories[0].id;
+                        this.onRepositoryChange();
+                    }
+                }
+            });
+        },
+        
+        onRepositoryChange() {
+            // Load branches for selected repository
+            this.$root.getSocket().emit("getRepositoryBranches", this.stack.repositoryId, (res) => {
+                if (res.ok) {
+                    this.branches = res.branches;
+                    if (this.branches.length > 0) {
+                        this.stack.gitBranch = this.branches[0];
+                        this.onBranchChange();
+                    }
+                }
+            });
+        },
+        
+        onBranchChange() {
+            // Scan repository for compose files
+            this.$root.getSocket().emit("scanRepository", {
+                repositoryId: this.stack.repositoryId,
+                branch: this.stack.gitBranch
+            }, (res) => {
+                if (res.ok) {
+                    this.composeFiles = res.files;
+                    if (this.composeFiles.length > 0) {
+                        this.stack.filePath = this.composeFiles[0].path;
+                        this.loadFileContent();
+                    }
+                }
+            });
+        },
+        
+        loadFileContent() {
+            // Load file content for preview
+            this.$root.getSocket().emit("getFileContent", {
+                repositoryId: this.stack.repositoryId,
+                branch: this.stack.gitBranch,
+                path: this.stack.filePath
+            }, (res) => {
+                if (res.ok) {
+                    this.previewYAML = res.content;
+                    this.applyVariables();
+                }
+            });
+        },
+        
+        applyVariables() {
+            // Apply variables to preview
+            let preview = this.previewYAML;
+            for (const variable of this.stack.gitVariables) {
+                if (variable.key) {
+                    const regex = new RegExp(`\\$\\{${variable.key}\\}`, 'g');
+                    preview = preview.replace(regex, variable.value);
+                }
+            }
+            this.previewYAML = preview;
+            
+            // Update the JSON config from the preview YAML
+            try {
+                const { config } = this.yamlToJSON(this.previewYAML);
+                this.jsonConfig = config;
+            } catch (e) {
+                console.error("Error parsing preview YAML:", e);
+            }
+        },
+        
+        addVariable() {
+            this.stack.gitVariables.push({ key: '', value: '' });
+        },
+        
+        removeVariable(index) {
+            this.stack.gitVariables.splice(index, 1);
+            this.applyVariables();
+        },
+        
         startServiceStatusTimeout() {
             clearTimeout(serviceStatusTimeout);
             serviceStatusTimeout = setTimeout(async () => {
@@ -539,7 +1066,48 @@ export default {
             this.$root.emitAgent(this.endpoint, "getStack", this.stack.name, (res) => {
                 if (res.ok) {
                     this.stack = res.stack;
-                    this.yamlCodeChange();
+                    
+                    // Check if this is a GitOps-managed stack
+                    if (this.stack.gitopsEnabled) {
+                        this.isGitOpsMode = true;
+                        
+                        // Set default if properties don't exist
+                        if (!this.stack.gitVariables) {
+                            this.stack.gitVariables = [];
+                        }
+                        
+                        // Load GitOps data if this is a GitOps stack
+                        this.loadRepositories();
+                        
+                        // Convert variables object to array if needed
+                        if (this.stack.variables && typeof this.stack.variables === 'object' && !Array.isArray(this.stack.variables)) {
+                            const variablesArray = [];
+                            for (const key in this.stack.variables) {
+                                variablesArray.push({
+                                    key,
+                                    value: this.stack.variables[key]
+                                });
+                            }
+                            this.stack.gitVariables = variablesArray;
+                        }
+                        
+                        // Load file content from repository
+                        if (this.stack.repositoryId) {
+                            this.$root.getSocket().emit("getFileContent", {
+                                repositoryId: this.stack.repositoryId,
+                                branch: this.stack.gitBranch,
+                                path: this.stack.filePath
+                            }, (fileRes) => {
+                                if (fileRes.ok) {
+                                    this.previewYAML = fileRes.content;
+                                    this.applyVariables();
+                                }
+                            });
+                        }
+                    } else {
+                        this.yamlCodeChange();
+                    }
+                    
                     this.processing = false;
                     this.bindTerminal();
                 } else {
@@ -549,6 +1117,69 @@ export default {
         },
 
         deployStack() {
+            if (this.isGitOpsMode) {
+                this.deployGitOpsStack();
+            } else {
+                this.deployDirectStack();
+            }
+        },
+        
+        deployGitOpsStack() {
+            this.processing = true;
+            
+            if (!this.jsonConfig.services) {
+                this.$root.toastError("No services found in compose file");
+                this.processing = false;
+                return;
+            }
+            
+            // Convert variables array to object
+            const variables = {};
+            this.stack.gitVariables.forEach(v => {
+                if (v.key) {
+                    variables[v.key] = v.value;
+                }
+            });
+            
+            // Set the stack name if empty using the same logic as direct deployment
+            if (!this.stack.name) {
+                let serviceNameList = Object.keys(this.jsonConfig.services);
+                if (serviceNameList.length > 0) {
+                    let serviceName = serviceNameList[0];
+                    let service = this.jsonConfig.services[serviceName];
+                    
+                    if (service && service.container_name) {
+                        this.stack.name = service.container_name;
+                    } else {
+                        this.stack.name = serviceName;
+                    }
+                }
+            }
+            
+            this.bindTerminal();
+            
+            const deployData = {
+                stackName: this.stack.name,
+                repositoryId: this.stack.repositoryId,
+                filePath: this.stack.filePath,
+                branch: this.stack.gitBranch,
+                variables,
+                endpoint: this.stack.endpoint,
+                isAdd: this.isAdd
+            };
+            
+            this.$root.emitAgent(this.stack.endpoint, "deployFromRepository", deployData, (res) => {
+                this.processing = false;
+                this.$root.toastRes(res);
+                
+                if (res.ok) {
+                    this.isEditMode = false;
+                    this.$router.push(this.url);
+                }
+            });
+        },
+        
+        deployDirectStack() {
             this.processing = true;
 
             if (!this.jsonConfig.services) {
@@ -592,6 +1223,47 @@ export default {
         },
 
         saveStack() {
+            if (this.isGitOpsMode) {
+                this.saveGitOpsStack();
+            } else {
+                this.saveDirectStack();
+            }
+        },
+        
+        saveGitOpsStack() {
+            this.processing = true;
+            
+            // Convert variables array to object
+            const variables = {};
+            this.stack.gitVariables.forEach(v => {
+                if (v.key) {
+                    variables[v.key] = v.value;
+                }
+            });
+            
+            const saveData = {
+                stackName: this.stack.name,
+                repositoryId: this.stack.repositoryId,
+                filePath: this.stack.filePath,
+                branch: this.stack.gitBranch,
+                variables,
+                endpoint: this.stack.endpoint,
+                isAdd: this.isAdd,
+                gitopsEnabled: true
+            };
+            
+            this.$root.emitAgent(this.stack.endpoint, "saveGitOpsStack", saveData, (res) => {
+                this.processing = false;
+                this.$root.toastRes(res);
+                
+                if (res.ok) {
+                    this.isEditMode = false;
+                    this.$router.push(this.url);
+                }
+            });
+        },
+        
+        saveDirectStack() {
             this.processing = true;
 
             this.$root.emitAgent(this.stack.endpoint, "saveStack", this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.isAdd, (res) => {
