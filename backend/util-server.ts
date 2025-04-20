@@ -30,6 +30,7 @@ export interface Arguments {
     hostname? : string;
     dataDir? : string;
     stacksDir? : string;
+    gitReposDir? : string;
     enableConsole? : boolean;
 }
 
@@ -37,6 +38,7 @@ export interface Arguments {
 export interface Config extends Arguments {
     dataDir : string;
     stacksDir : string;
+    gitReposDir?: string;
 }
 
 export function checkLogin(socket : DockgeSocket) {

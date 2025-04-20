@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { MainRouter } from "./routers/main-router";
+import { GitRouterWrapper } from "./routers/git-router-wrapper";
 import * as fs from "node:fs";
 import { PackageJson } from "type-fest";
 import { Database } from "./database";
@@ -13,6 +14,7 @@ import http from "http";
 import { Router } from "./router";
 import { Socket } from "socket.io";
 import { MainSocketHandler } from "./socket-handlers/main-socket-handler";
+import { GitSocketHandlerWrapper } from "./socket-handlers/git-socket-handler-wrapper";
 import { SocketHandler } from "./socket-handler";
 import { Settings } from "./settings";
 import checkVersion from "./check-version";
@@ -37,6 +39,7 @@ import { AgentSocketHandler } from "./agent-socket-handler";
 import { AgentSocket } from "../common/agent-socket";
 import { ManageAgentSocketHandler } from "./socket-handlers/manage-agent-socket-handler";
 import { Terminal } from "./terminal";
+import { GitOpsService } from "./services/gitops-service";
 
 export class DockgeServer {
     app : Express;
@@ -51,6 +54,7 @@ export class DockgeServer {
      */
     routerList : Router[] = [
         new MainRouter(),
+        new GitRouterWrapper(),
     ];
 
     /**
@@ -59,6 +63,7 @@ export class DockgeServer {
     socketHandlerList : SocketHandler[] = [
         new MainSocketHandler(),
         new ManageAgentSocketHandler(),
+        new GitSocketHandlerWrapper(),
     ];
 
     agentProxySocketHandler = new AgentProxySocketHandler();
@@ -137,6 +142,10 @@ export class DockgeServer {
                 type: String,
                 optional: true,
             },
+            gitReposDir: {
+                type: String,
+                optional: true,
+            },
             enableConsole: {
                 type: Boolean,
                 optional: true,
@@ -154,6 +163,7 @@ export class DockgeServer {
         this.config.hostname = args.hostname || process.env.DOCKGE_HOSTNAME || undefined;
         this.config.dataDir = args.dataDir || process.env.DOCKGE_DATA_DIR || "./data/";
         this.config.stacksDir = args.stacksDir || process.env.DOCKGE_STACKS_DIR || defaultStacksDir;
+        this.config.gitReposDir = args.gitReposDir || process.env.DOCKGE_GIT_REPOSITORIES_DIR || "/opt/git-repositories";
         this.config.enableConsole = args.enableConsole || process.env.DOCKGE_ENABLE_CONSOLE === "true" || false;
         this.stacksDir = this.config.stacksDir;
 
@@ -343,6 +353,12 @@ export class DockgeServer {
 
         // Also connect to other dockge instances
         socket.instanceManager.connectAll();
+        
+        // Initialize GitOps service
+        const gitOpsService = new GitOpsService(this.config.gitReposDir, this.config.stacksDir);
+        await gitOpsService.initialize().catch(error => {
+            log.error("gitops", `Failed to initialize GitOps service: ${error}`);
+        });
     }
 
     /**
@@ -557,6 +573,12 @@ export class DockgeServer {
         // Create data/stacks directory
         if (!fs.existsSync(this.stacksDir)) {
             fs.mkdirSync(this.stacksDir, { recursive: true });
+        }
+
+        // Create Git repositories directory
+        if (this.config.gitReposDir && !fs.existsSync(this.config.gitReposDir)) {
+            fs.mkdirSync(this.config.gitReposDir, { recursive: true });
+            log.info("server", `Git repositories directory created: ${this.config.gitReposDir}`);
         }
 
         log.info("server", `Data Dir: ${this.config.dataDir}`);

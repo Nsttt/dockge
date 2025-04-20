@@ -5,7 +5,7 @@ import jwtDecode from "jwt-decode";
 import { Terminal } from "@xterm/xterm";
 import { AgentSocket } from "../../../common/agent-socket";
 
-let socket : Socket;
+export let socket : Socket;
 
 let terminalMap : Map<string, Terminal> = new Map();
 

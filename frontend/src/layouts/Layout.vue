@@ -67,6 +67,12 @@
                             </li>
 
                             <li>
+                                <router-link to="/gitops" class="dropdown-item" :class="{ active: $route.path.includes('gitops') }">
+                                    <font-awesome-icon icon="code-branch" /> {{ $t("GitOps") }}
+                                </router-link>
+                            </li>
+                            
+                            <li>
                                 <router-link to="/settings/general" class="dropdown-item" :class="{ active: $route.path.includes('settings') }">
                                     <font-awesome-icon icon="cog" /> {{ $t("Settings") }}
                                 </router-link>

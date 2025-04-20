@@ -9,6 +9,7 @@ import Compose from "./pages/Compose.vue";
 import ContainerTerminal from "./pages/ContainerTerminal.vue";
 
 const Settings = () => import("./pages/Settings.vue");
+const GitOps = () => import("./pages/GitOps.vue");
 
 // Settings - Sub Pages
 import Appearance from "./components/settings/Appearance.vue";
@@ -83,6 +84,10 @@ const routes = [
                                 component: About,
                             },
                         ]
+                    },
+                    {
+                        path: "/gitops",
+                        component: GitOps,
                     },
                 ]
             },
